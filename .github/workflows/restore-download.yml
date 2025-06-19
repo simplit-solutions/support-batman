@@ -1,0 +1,37 @@
+name: Restore and Download Glacier Object
+
+on:
+  workflow_dispatch:
+    inputs:
+      account_id:
+        description: 'Account ID'
+        required: true
+      visit_id:
+        description: 'Visit ID'
+        required: true
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y postgresql-client awscli
+
+      - name: Run restoration script
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          BUCKET_NAME: simpli-visit-images
+        run: |
+          chmod +x ./Restore_S3/script.sh
+          ./Restore_S3/script.sh ${{ github.event.inputs.account_id }} ${{ github.event.inputs.visit_id }}
