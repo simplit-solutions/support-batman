@@ -41,5 +41,5 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
         run: |
-          chmod +x ./restore_s3_glacier.sh
-          ./restore_s3_glacier.sh ${{ github.event.inputs.account_id }} ${{ github.event.inputs.visit_id }}
+          chmod +x ./Restore_S3/script.sh
+          ./Restore_S3/script.sh ${{ github.event.inputs.account_id }} ${{ github.event.inputs.visit_id }}
