@@ -4,23 +4,8 @@ set -e
 # -----------------------------------------------------------------------------
 # Configuración de Conexiones
 # -----------------------------------------------------------------------------
-# Variables de entorno requeridas:
-# - DB_HOST:         Host o IP de tu instancia Postgres en GCP (ej. 127.0.0.1 si usas Cloud SQL Proxy)
-# - DB_PORT:         Puerto de conexión (por defecto 5432)
-# - DB_NAME:         Nombre de la base de datos
-# - DB_USER:         Usuario de la base de datos
-# - DB_PASSWORD:     Contraseña del usuario
-# - DB_SSLMODE:      Modo SSL para conexión (disable, require, verify-full)
-#
-# - AWS_ACCESS_KEY_ID:     AWS Access Key ID
-# - AWS_SECRET_ACCESS_KEY: AWS Secret Access Key
-# - AWS_REGION:            Región de AWS (ej. us-west-2)
-# - BUCKET_NAME:           Nombre del bucket S3 (ej. simpli-visit-images)
-# -----------------------------------------------------------------------------
-
-# Verificar variables de entorno mínimas
-: "${DB_HOST:?Falta DB_HOST}"  # aborta si no está
-: "${DB_PORT:?Falta DB_PORT}"  # aborta si no está
+: "${DB_HOST:?Falta DB_HOST}"
+: "${DB_PORT:?Falta DB_PORT}"
 : "${DB_NAME:?Falta DB_NAME}"
 : "${DB_USER:?Falta DB_USER}"
 : "${DB_PASSWORD:?Falta DB_PASSWORD}"

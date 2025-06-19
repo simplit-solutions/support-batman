@@ -20,18 +20,20 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y postgresql-client awscli
+          sudo apt install -y postgresql-client awscli wget
 
-      - name: Start Cloud SQL Proxy (opcional si lo usas)
-        uses: google-github-actions/cloud-sql-proxy@v1
-        with:
-          instance: ${{ secrets.CLOUD_SQL_INSTANCE }}
-          credentials: ${{ secrets.GCP_SA_KEY }}
+      - name: Start Cloud SQL Proxy
+        run: |
+          wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O cloud_sql_proxy
+          chmod +x cloud_sql_proxy
+          ./cloud_sql_proxy -instances="${{ secrets.CLOUD_SQL_INSTANCE }}"=tcp:5432 &
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
 
       - name: Ejecutar script de restauración
         env:
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
