@@ -1,37 +1,73 @@
 #!/bin/bash
 set -e
 
+# -----------------------------------------------------------------------------
+# Configuración de Conexiones
+# -----------------------------------------------------------------------------
+# Variables de entorno requeridas:
+# - DB_HOST:         Host o IP de tu instancia Postgres en GCP (ej. 127.0.0.1 si usas Cloud SQL Proxy)
+# - DB_PORT:         Puerto de conexión (por defecto 5432)
+# - DB_NAME:         Nombre de la base de datos
+# - DB_USER:         Usuario de la base de datos
+# - DB_PASSWORD:     Contraseña del usuario
+# - DB_SSLMODE:      Modo SSL para conexión (disable, require, verify-full)
+#
+# - AWS_ACCESS_KEY_ID:     AWS Access Key ID
+# - AWS_SECRET_ACCESS_KEY: AWS Secret Access Key
+# - AWS_REGION:            Región de AWS (ej. us-west-2)
+# - BUCKET_NAME:           Nombre del bucket S3 (ej. simpli-visit-images)
+# -----------------------------------------------------------------------------
+
+# Verificar variables de entorno mínimas
+: "${DB_HOST:?Falta DB_HOST}"  # aborta si no está
+: "${DB_PORT:?Falta DB_PORT}"  # aborta si no está
+: "${DB_NAME:?Falta DB_NAME}"
+: "${DB_USER:?Falta DB_USER}"
+: "${DB_PASSWORD:?Falta DB_PASSWORD}"
+: "${DB_SSLMODE:?Falta DB_SSLMODE}"
+: "${AWS_ACCESS_KEY_ID:?Falta AWS_ACCESS_KEY_ID}"
+: "${AWS_SECRET_ACCESS_KEY:?Falta AWS_SECRET_ACCESS_KEY}"
+: "${AWS_REGION:?Falta AWS_REGION}"
+: "${BUCKET_NAME:?Falta BUCKET_NAME}"
+
 ACCOUNT_ID=$1
 VISIT_ID=$2
 
+if [[ -z "$ACCOUNT_ID" || -z "$VISIT_ID" ]]; then
+  echo "Uso: $0 <account_id> <visit_id>"
+  exit 1
+fi
+
 # PostgreSQL query to get image path
-echo "Consultando PostgreSQL..."
-IMAGE_PATH=$(psql "host=$DB_HOST dbname=$DB_NAME user=$DB_USER password=$DB_PASSWORD" -t -c "
-  SELECT rv.image 
-  FROM routes_visit 
-  INNER JOIN public.routes_visitpicture rv ON routes_visit.id = rv.visit_id 
+echo "[INFO] Consultando PostgreSQL en ${DB_HOST}:${DB_PORT}/${DB_NAME}..."
+IMAGE_PATH=$(psql "host=$DB_HOST port=$DB_PORT dbname=$DB_NAME user=$DB_USER password=$DB_PASSWORD sslmode=$DB_SSLMODE" -t -c "
+  SELECT rv.image
+  FROM routes_visit
+  INNER JOIN public.routes_visitpicture rv ON routes_visit.id = rv.visit_id
   WHERE routes_visit.account_id = $ACCOUNT_ID AND routes_visit.id = $VISIT_ID
 ")
 
 IMAGE_PATH=$(echo $IMAGE_PATH | xargs) # Trim whitespace
 
 if [[ -z "$IMAGE_PATH" ]]; then
-  echo "No se encontró la ruta de imagen para la visita dada."
+  echo "[ERROR] No se encontró la ruta de imagen para account_id=$ACCOUNT_ID, visit_id=$VISIT_ID."
   exit 1
 fi
 
-echo "Ruta obtenida: $IMAGE_PATH"
+echo "[INFO] Ruta obtenida: $IMAGE_PATH"
 
-# Request restore from Glacier Deep Archive
-echo "Solicitando restauración del objeto $IMAGE_PATH en S3..."
+# Configurar AWS CLI (opcional si usas perfil default)
+export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION
+
+echo "[INFO] Solicitando restauración del objeto en S3: s3://$BUCKET_NAME/$IMAGE_PATH..."
 aws s3api restore-object \
   --bucket "$BUCKET_NAME" \
   --key "$IMAGE_PATH" \
   --restore-request '{"Days":5,"GlacierJobParameters":{"Tier":"Standard"}}'
 
-# Optional monitoring (polling restore status)
-echo "Puedes verificar la restauración con:"
-echo "aws s3api head-object --bucket $BUCKET_NAME --key $IMAGE_PATH"
+# Mensajes de monitoreo y descarga
+echo "[INFO] Verificar estado de restauración con:"
+echo " aws s3api head-object --bucket $BUCKET_NAME --key $IMAGE_PATH"
 
-echo "Cuando el objeto esté restaurado, ejecuta para descargar:"
-echo "aws s3 cp s3://$BUCKET_NAME/$IMAGE_PATH ./$(basename $IMAGE_PATH)"
+echo "Cuando el archivo indique 'ongoing-request=\"false\"', descargar con:"
+echo " aws s3 cp s3://$BUCKET_NAME/$IMAGE_PATH ./$(basename $IMAGE_PATH)"

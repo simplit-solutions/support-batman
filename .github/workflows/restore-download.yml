@@ -14,7 +14,7 @@ jobs:
   restore:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install dependencies
@@ -22,16 +22,24 @@ jobs:
           sudo apt update
           sudo apt install -y postgresql-client awscli
 
-      - name: Run restoration script
+      - name: Start Cloud SQL Proxy (opcional si lo usas)
+        uses: google-github-actions/cloud-sql-proxy@v1
+        with:
+          instance: ${{ secrets.CLOUD_SQL_INSTANCE }}
+          credentials: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Ejecutar script de restauración
         env:
           DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_SSLMODE: ${{ secrets.DB_SSLMODE }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          BUCKET_NAME: simpli-visit-images
+          BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
         run: |
-          chmod +x ./Restore_S3/script.sh
-          ./Restore_S3/script.sh ${{ github.event.inputs.account_id }} ${{ github.event.inputs.visit_id }}
+          chmod +x ./restore_s3_glacier.sh
+          ./restore_s3_glacier.sh ${{ github.event.inputs.account_id }} ${{ github.event.inputs.visit_id }}
