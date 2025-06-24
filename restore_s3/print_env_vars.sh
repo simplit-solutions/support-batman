@@ -1,0 +1,21 @@
+#!/bin/bash
+
+echo "🔐 Secrets necesarios (configurados en GitHub > Settings > Secrets > Actions):"
+echo "--------------------------------------------------------------"
+echo "GOOGLE_CREDENTIALS         -> JSON de la Service Account de GCP"
+echo "DB_NAME                    -> Nombre de la base de datos PostgreSQL"
+echo "DB_USER                    -> Usuario de la base de datos PostgreSQL"
+echo "DB_PASSWORD                -> Contraseña de la base de datos PostgreSQL"
+echo "AWS_ACCESS_KEY_ID          -> Clave de acceso AWS (IAM)"
+echo "AWS_SECRET_ACCESS_KEY      -> Clave secreta de acceso AWS"
+echo "AWS_REGION                 -> Región donde está el bucket S3 (ej. us-west-2)"
+echo "BUCKET_NAME                -> Nombre del bucket en S3"
+echo ""
+
+echo "⚙️  Inputs requeridos en el workflow (usados desde el botón 'Run workflow'):"
+echo "--------------------------------------------------------------"
+echo "account_id                 -> ID de la cuenta en la tabla routes_visit"
+echo "visit_id                   -> ID de la visita asociada"
+echo "project                    -> ID del proyecto en GCP (ej. icarus-prod)"
+echo "instance_connection_name   -> Conexión a instancia Cloud SQL (ej. icarus-prod:us-central1:icarus-api-bi)"
+echo ""

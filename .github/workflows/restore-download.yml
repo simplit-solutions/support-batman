@@ -9,11 +9,24 @@ on:
       visit_id:
         description: 'Visit ID'
         required: true
+      project:
+        description: 'GCP Project ID'
+        required: true
+      instance_connection_name:
+        description: 'Cloud SQL Instance Connection Name'
+        required: true
+
+
 
 jobs:
   restore:
     runs-on: ubuntu-latest
     steps:
+      - name: Mostrar variables esperadas
+        run: |
+          chmod +x ./restore_s3/print_env_vars.sh
+          ./restore_s3/print_env_vars.sh
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -25,14 +38,30 @@ jobs:
           unzip awscliv2.zip
           sudo ./aws/install --update
 
+      - name: Autenticación con cuenta de servicio de GCP
+        shell: bash
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+        run: |
+          echo "$GOOGLE_APPLICATION_CREDENTIALS" > /tmp/gcp_sa_key.json
+          gcloud auth activate-service-account --key-file=/tmp/gcp_sa_key.json
+          gcloud config set project "${{ github.event.inputs.project }}"
+
+      - name: Iniciar Cloud SQL Proxy
+        run: |
+          curl -o cloud_sql_proxy https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64
+          chmod +x cloud_sql_proxy
+          ./cloud_sql_proxy -instances=${{ github.event.inputs.instance_connection_name }}=tcp:5432 &
+          sleep 5
+
       - name: Ejecutar script de restauración
         env:
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_SSLMODE: ${{ secrets.DB_SSLMODE }}
+          DB_SSLMODE: disable
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
