@@ -35,9 +35,23 @@ jobs:
           unzip awscliv2.zip
           sudo ./aws/install --update
       - name: Mostrar variables esperadas
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
         run: |
           chmod +x ./restore_s3/print_env_vars.sh
-          ./restore_s3/print_env_vars.sh
+          ./restore_s3/print_env_vars.sh \
+            ${{ github.event.inputs.account_id }} \
+            ${{ github.event.inputs.visit_id }} \
+            ${{ github.event.inputs.project }} \
+            ${{ github.event.inputs.instance_connection_name }}
+
       - name: Autenticación con cuenta de servicio de GCP
         shell: bash
         env:
