@@ -22,10 +22,7 @@ jobs:
   restore:
     runs-on: ubuntu-latest
     steps:
-      - name: Mostrar variables esperadas
-        run: |
-          chmod +x ./restore_s3/print_env_vars.sh
-          ./restore_s3/print_env_vars.sh
+      
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -37,7 +34,10 @@ jobs:
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
           unzip awscliv2.zip
           sudo ./aws/install --update
-
+      - name: Mostrar variables esperadas
+        run: |
+          chmod +x ./restore_s3/print_env_vars.sh
+          ./restore_s3/print_env_vars.sh
       - name: Autenticación con cuenta de servicio de GCP
         shell: bash
         env:
