@@ -1,3 +1,4 @@
+# 📄 `restore-download.yml`
 name: Restore and Download Glacier Object
 
 on:
@@ -16,8 +17,6 @@ on:
         description: 'Cloud SQL Instance Connection Name'
         required: true
 
-
-
 jobs:
   restore:
     runs-on: simpli-2
@@ -29,11 +28,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt update
-          sudo apt install -y postgresql-client unzip curl
+          apt update
+          apt install -y postgresql-client unzip curl
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
           unzip awscliv2.zip
-          sudo ./aws/install --update
+          ./aws/install --update
+
       - name: Mostrar variables esperadas
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
@@ -57,10 +57,10 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
         run: |
-         echo $GOOGLE_APPLICATION_CREDENTIALS > /tmp/gcp_sa_key.json
-         export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_sa_key.json
-         gcloud auth activate-service-account --key-file=/tmp/gcp_sa_key.json
-         gcloud config set project "${{ github.event.inputs.project }}"
+          echo "$GOOGLE_APPLICATION_CREDENTIALS" > /tmp/gcp_sa_key.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_sa_key.json
+          gcloud auth activate-service-account --key-file=/tmp/gcp_sa_key.json
+          gcloud config set project "${{ github.event.inputs.project }}"
 
       - name: Iniciar Cloud SQL Proxy
         run: |
