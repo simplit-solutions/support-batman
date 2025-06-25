@@ -1,4 +1,3 @@
-# 📄 `restore-download.yml`
 name: Restore and Download Glacier Object
 
 on:
