@@ -10,7 +10,7 @@ provider "google" {
 
 # Canal de notificación por Email
 resource "google_monitoring_notification_channel" "email" {
-  count           = var.notification_emails != null ? 1 : 0
+  count           = var.notification_emails != null && length(var.notification_emails) > 0 ? 1 : 0
   display_name    = "Email Notifications"
   type            = "email"
   enabled         = true
@@ -23,7 +23,7 @@ resource "google_monitoring_notification_channel" "email" {
 
 # Canal de notificación por Slack
 resource "google_monitoring_notification_channel" "slack" {
-  count           = var.slack_webhook_url != null ? 1 : 0
+  count           = var.slack_webhook_url != null && length(trimspace(var.slack_webhook_url)) > 0 ? 1 : 0
   display_name    = "Slack Notifications"
   type            = "slack"
   enabled         = true
@@ -31,6 +31,7 @@ resource "google_monitoring_notification_channel" "slack" {
 
   labels = {
     channel_name = var.slack_channel_name
+    auth_token   = var.slack_webhook_url
   }
 
   sensitive_labels {
@@ -174,7 +175,7 @@ resource "google_monitoring_dashboard" "gke_cluster" {
           height = 3
           widget = {
             title = "Kubernetes Container - CPU limit utilization for qa2, icarus-api [MAX]"
-            gaugeChart = {
+            xyChart = {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
@@ -186,9 +187,9 @@ resource "google_monitoring_dashboard" "gke_cluster" {
                   }
                 }
               }]
-              gaugeOptions = {
-                lowerBound = 0
-                upperBound = 1
+              yAxis = {
+                label = "Value"
+                scale = "LINEAR"
               }
             }
           }
@@ -200,7 +201,7 @@ resource "google_monitoring_dashboard" "gke_cluster" {
           height = 3
           widget = {
             title = "Kubernetes Container - Memory limit utilization for icarus-api, qa2 [MAX]"
-            gaugeChart = {
+            xyChart = {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
@@ -212,9 +213,9 @@ resource "google_monitoring_dashboard" "gke_cluster" {
                   }
                 }
               }]
-              gaugeOptions = {
-                lowerBound = 0
-                upperBound = 1
+              yAxis = {
+                label = "Value"
+                scale = "LINEAR"
               }
             }
           }
