@@ -5,9 +5,9 @@ provider "google" {
 }
 
 locals {
-  namespace_filter_expr = var.namespace_filter == "exact" && length(var.namespace_list) > 0 ? ("(" + join(" OR ", [for ns in var.namespace_list : format("resource.label.namespace_name=\"%s\"", ns)]) + ")") : ""
+  namespace_filter_expr = var.namespace_filter == "exact" && length(var.namespace_list) > 0 ? (" " + "(" + join(" OR ", [for ns in var.namespace_list : format("resource.label.namespace_name=\"%s\"", ns)]) + ")") : ""
 
-  namespace_group_expr = { for k, v in var.namespace_groups : k => (length(v) > 0 ? ("(" + join(" OR ", [for ns in v : format("resource.label.namespace_name=\"%s\"", ns)]) + ")") : "") }
+  namespace_group_expr = { for k, v in var.namespace_groups : k => (length(v) > 0 ? (" " + "(" + join(" OR ", [for ns in v : format("resource.label.namespace_name=\"%s\"", ns)]) + ")") : "") }
 }
 
 # ============================================
