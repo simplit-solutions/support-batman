@@ -20,7 +20,11 @@ locals {
   }
 
   # Slack token: prefer OAuth token, fallback to legacy field if needed
-  slack_token = length(trimspace(coalesce(var.slack_auth_token, var.slack_webhook_url, ""))) > 0 ? trimspace(coalesce(var.slack_auth_token, var.slack_webhook_url, "")) : null
+  slack_token = (
+    var.slack_auth_token != null && length(trimspace(var.slack_auth_token)) > 0 ? trimspace(var.slack_auth_token) : (
+      var.slack_webhook_url != null && length(trimspace(var.slack_webhook_url)) > 0 ? trimspace(var.slack_webhook_url) : null
+    )
+  )
 
   # Notification channel IDs for alert policies
   notification_channel_ids = concat(
