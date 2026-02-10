@@ -43,3 +43,19 @@ notification_emails = [
 # 2. Crea una Slack App y usa el Bot User OAuth token.
 slack_auth_token  = null # Reemplazar con tu auth_token de Slack
 slack_channel_name = "#alerts"
+
+# ========================================
+# FILTRADO DE NAMESPACES (KUBERNETES SOLO)
+# ========================================
+# Modo de filtrado: "none" (todos) o "exact" (específicos)
+namespace_filter = "none"
+
+# Namespaces específicos (ignorado si namespace_filter = "none")
+namespace_list = []
+
+# Opcional: Agrupar namespaces en alertas por categoría
+# Solo usado si namespace_filter = "exact"
+namespace_groups = {
+  # "production" = ["namespace1", "namespace2"]
+  # "staging"    = ["staging-ns1", "staging-ns2"]
+}

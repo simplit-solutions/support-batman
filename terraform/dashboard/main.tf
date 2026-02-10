@@ -1,54 +1,28 @@
+# ============================================
 # Proyecto de monitoreo central
+# ============================================
+
 provider "google" {
   project = var.monitoring_project_id
   region  = var.monitoring_region
 }
 
 locals {
-  namespace_filter_expr = var.namespace_filter == "exact" && length(var.namespace_list) > 0 ? (" " + "(" + join(" OR ", [for ns in var.namespace_list : format("resource.label.namespace_name=\"%s\"", ns)]) + ")") : ""
+  # Namespace filtering (exact list)
+  namespace_filter_expr = var.namespace_filter == "exact" && length(var.namespace_list) > 0 ? (
+    " (" + join(" OR ", [for ns in var.namespace_list : format("resource.label.namespace_name=\"%s\"", ns)]) + ")"
+  ) : ""
 
-  namespace_group_expr = { for k, v in var.namespace_groups : k => (length(v) > 0 ? (" " + "(" + join(" OR ", [for ns in v : format("resource.label.namespace_name=\"%s\"", ns)]) + ")") : "") }
-}
-
-# ============================================
-# NOTIFICATION CHANNELS (para alertas)
-# ============================================
-
-# Canal(es) de notificación por Email (uno por cada email)
-resource "google_monitoring_notification_channel" "email" {
-  for_each        = toset(var.notification_emails)
-  display_name    = "Email: ${each.value}"
-  type            = "email"
-  enabled         = true
-  force_delete    = true
-
-  labels = {
-    email_address = each.value
-  }
-}
-
-# Canal de notificación por Slack
-# Nota: Cloud Monitoring espera un auth_token (Bot User OAuth token) + channel_name.
-# Para compatibilidad: si no se provee slack_auth_token, se usa slack_webhook_url (legacy).
-resource "google_monitoring_notification_channel" "slack" {
-  count        = local.slack_token != null && length(trimspace(local.slack_token)) > 0 ? 1 : 0
-  display_name = "Slack Notifications"
-  type         = "slack"
-  enabled      = true
-  force_delete = true
-
-  labels = {
-    channel_name = var.slack_channel_name
+  # Namespace grouping (qa2, qa3, etc.)
+  namespace_group_expr = {
+    for k, v in var.namespace_groups :
+    k => (length(v) > 0 ? (" (" + join(" OR ", [for ns in v : format("resource.label.namespace_name=\"%s\"", ns)]) + ")") : "")
   }
 
-  sensitive_labels {
-    auth_token = local.slack_token
-  }
-}
-
-locals {
+  # Slack token: prefer OAuth token, fallback to legacy field if needed
   slack_token = coalesce(var.slack_auth_token, var.slack_webhook_url)
 
+  # Notification channel IDs for alert policies
   notification_channel_ids = concat(
     [for _, c in google_monitoring_notification_channel.email : c.id],
     try([google_monitoring_notification_channel.slack[0].id], [])
@@ -56,11 +30,38 @@ locals {
 }
 
 # ============================================
+# NOTIFICATION CHANNELS
+# ============================================
+
+# Email notification channels (one per email address)
+resource "google_monitoring_notification_channel" "email" {
+  for_each      = toset(var.notification_emails)
+  display_name  = "Email - ${each.value}"
+  type          = "email"
+  labels = {
+    email_address = each.value
+  }
+}
+
+# Slack notification channel (optional, only if auth_token provided)
+resource "google_monitoring_notification_channel" "slack" {
+  count         = local.slack_token != null ? 1 : 0
+  display_name  = "Slack - ${var.slack_channel_name}"
+  type          = "slack"
+  labels = {
+    channel_name = var.slack_channel_name
+  }
+  sensitive_labels {
+    auth_token = local.slack_token
+  }
+}
+
+# ============================================
 # KUBERNETES DASHBOARD
 # ============================================
 
 resource "google_monitoring_dashboard" "gke_cluster" {
-  count           = var.dashboard_type == "kubernetes" ? 1 : 0
+  count          = var.dashboard_type == "kubernetes" ? 1 : 0
   dashboard_json = jsonencode({
     displayName = "GKE Cluster - ${var.cluster_name} (${var.target_project_id})"
     mosaicLayout = {
@@ -93,8 +94,8 @@ resource "google_monitoring_dashboard" "gke_cluster" {
             }
           }
         },
-        
-        # ==== Row 2: CPU Limit Utilization QA1 ====
+
+        # ==== Row 2: CPU/Memory Limit Utilization QA1 ====
         {
           yPos   = 3
           width  = 6
@@ -105,10 +106,10 @@ resource "google_monitoring_dashboard" "gke_cluster" {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
-                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\" ${local.namespace_filter_expr} metric.type=\"kubernetes.io/container/cpu/limit_utilization\""
+                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\"${local.namespace_filter_expr} metric.type=\"kubernetes.io/container/cpu/limit_utilization\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_MEAN"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_MEAN"
                     }
                   }
                 }
@@ -127,10 +128,10 @@ resource "google_monitoring_dashboard" "gke_cluster" {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
-                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\" ${local.namespace_filter_expr} metric.type=\"kubernetes.io/container/memory/limit_utilization\""
+                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\"${local.namespace_filter_expr} metric.type=\"kubernetes.io/container/memory/limit_utilization\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_MEAN"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_MEAN"
                     }
                   }
                 }
@@ -150,10 +151,10 @@ resource "google_monitoring_dashboard" "gke_cluster" {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
-                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\" ${lookup(local.namespace_group_expr, "qa2", "")} metric.type=\"kubernetes.io/container/cpu/limit_utilization\""
+                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\"${lookup(local.namespace_group_expr, "qa2", "")} metric.type=\"kubernetes.io/container/cpu/limit_utilization\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_MEAN"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_MEAN"
                     }
                   }
                 }
@@ -172,10 +173,10 @@ resource "google_monitoring_dashboard" "gke_cluster" {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
-                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\" ${lookup(local.namespace_group_expr, "qa2", "")} metric.type=\"kubernetes.io/container/memory/limit_utilization\""
+                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\"${lookup(local.namespace_group_expr, "qa2", "")} metric.type=\"kubernetes.io/container/memory/limit_utilization\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_MEAN"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_MEAN"
                     }
                   }
                 }
@@ -197,8 +198,8 @@ resource "google_monitoring_dashboard" "gke_cluster" {
                   timeSeriesFilter = {
                     filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\" resource.label.namespace_name=\"qa2\" resource.label.container_name=\"icarus-api\" metric.type=\"kubernetes.io/container/cpu/limit_utilization\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_MAX"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_MAX"
                     }
                   }
                 }
@@ -223,8 +224,8 @@ resource "google_monitoring_dashboard" "gke_cluster" {
                   timeSeriesFilter = {
                     filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\" resource.label.namespace_name=\"qa2\" resource.label.container_name=\"icarus-api\" metric.type=\"kubernetes.io/container/memory/limit_utilization\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_MAX"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_MAX"
                     }
                   }
                 }
@@ -250,8 +251,8 @@ resource "google_monitoring_dashboard" "gke_cluster" {
                   timeSeriesFilter = {
                     filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\" resource.label.namespace_name=\"qa2\" metric.type=\"kubernetes.io/container/uptime\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_RATE"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_RATE"
                     }
                   }
                 }
@@ -271,10 +272,10 @@ resource "google_monitoring_dashboard" "gke_cluster" {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
-                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\" ${lookup(local.namespace_group_expr, "qa3", "")} metric.type=\"kubernetes.io/container/cpu/limit_utilization\""
+                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\"${lookup(local.namespace_group_expr, "qa3", "")} metric.type=\"kubernetes.io/container/cpu/limit_utilization\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_MEAN"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_MEAN"
                     }
                   }
                 }
@@ -293,10 +294,10 @@ resource "google_monitoring_dashboard" "gke_cluster" {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
-                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\" ${lookup(local.namespace_group_expr, "qa3", "")} metric.type=\"kubernetes.io/container/memory/limit_utilization\""
+                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\"${lookup(local.namespace_group_expr, "qa3", "")} metric.type=\"kubernetes.io/container/memory/limit_utilization\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_MEAN"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_MEAN"
                     }
                   }
                 }
@@ -310,9 +311,8 @@ resource "google_monitoring_dashboard" "gke_cluster" {
 }
 
 # ============================================
-# ALERT POLICIES
+# ALERT POLICIES - Kubernetes
 # ============================================
-
 
 # Alerta: CPU alta en nodos (utilización sobre allocatable)
 resource "google_monitoring_alert_policy" "high_node_cpu" {
@@ -434,7 +434,7 @@ resource "google_monitoring_alert_policy" "node_not_ready" {
 # ============================================
 
 resource "google_monitoring_dashboard" "cloud_sql" {
-  count           = var.dashboard_type == "database" ? 1 : 0
+  count          = var.dashboard_type == "database" ? 1 : 0
   dashboard_json = jsonencode({
     displayName = "Cloud SQL - ${var.database_instance} (${var.database_project_id})"
     mosaicLayout = {
@@ -452,8 +452,8 @@ resource "google_monitoring_dashboard" "cloud_sql" {
                   timeSeriesFilter = {
                     filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/cpu/utilization\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_MEAN"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_MEAN"
                     }
                   }
                 }
@@ -473,8 +473,8 @@ resource "google_monitoring_dashboard" "cloud_sql" {
                   timeSeriesFilter = {
                     filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/disk/write_ops_count\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_RATE"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_RATE"
                     }
                   }
                 }
@@ -496,8 +496,8 @@ resource "google_monitoring_dashboard" "cloud_sql" {
                   timeSeriesFilter = {
                     filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/memory/utilization\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_MEAN"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_MEAN"
                     }
                   }
                 }
@@ -522,8 +522,8 @@ resource "google_monitoring_dashboard" "cloud_sql" {
                   timeSeriesFilter = {
                     filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/cpu/utilization\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_MEAN"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_MEAN"
                     }
                   }
                 }
@@ -549,8 +549,8 @@ resource "google_monitoring_dashboard" "cloud_sql" {
                   timeSeriesFilter = {
                     filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/mysql/queries\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_RATE"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_RATE"
                     }
                   }
                 }
@@ -571,8 +571,8 @@ resource "google_monitoring_dashboard" "cloud_sql" {
                   timeSeriesFilter = {
                     filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/network/connections\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_MEAN"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_MEAN"
                     }
                   }
                 }
@@ -622,8 +622,8 @@ resource "google_monitoring_dashboard" "cloud_sql" {
                   timeSeriesFilter = {
                     filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/disk/utilization\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_MEAN"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_MEAN"
                     }
                   }
                 }
@@ -644,8 +644,8 @@ resource "google_monitoring_dashboard" "cloud_sql" {
                   timeSeriesFilter = {
                     filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/up\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_MEAN"
+                      alignmentPeriod  = "60s"
+                      perSeriesAligner = "ALIGN_MEAN"
                     }
                   }
                 }
@@ -664,10 +664,10 @@ resource "google_monitoring_dashboard" "cloud_sql" {
 
 # Alerta: CPU alta en database
 resource "google_monitoring_alert_policy" "high_db_cpu" {
-  count           = var.enable_alerts && var.dashboard_type == "database" ? 1 : 0
-  display_name    = "High Database CPU Usage"
-  combiner        = "OR"
-  enabled         = true
+  count        = var.enable_alerts && var.dashboard_type == "database" ? 1 : 0
+  display_name = "High Database CPU Usage"
+  combiner     = "OR"
+  enabled      = true
 
   conditions {
     display_name = "CPU > 80%"
@@ -678,24 +678,21 @@ resource "google_monitoring_alert_policy" "high_db_cpu" {
       threshold_value = 0.8
 
       aggregations {
-        alignment_period  = "60s"
+        alignment_period   = "60s"
         per_series_aligner = "ALIGN_MEAN"
       }
     }
   }
 
   notification_channels = local.notification_channel_ids
-,
-    try([google_monitoring_notification_channel.slack[0].id], [])
-  )
 }
 
 # Alerta: Memoria alta en database
 resource "google_monitoring_alert_policy" "high_db_memory" {
-  count           = var.enable_alerts && var.dashboard_type == "database" ? 1 : 0
-  display_name    = "High Database Memory Usage"
-  combiner        = "OR"
-  enabled         = true
+  count        = var.enable_alerts && var.dashboard_type == "database" ? 1 : 0
+  display_name = "High Database Memory Usage"
+  combiner     = "OR"
+  enabled      = true
 
   conditions {
     display_name = "Memory > 85%"
@@ -706,24 +703,21 @@ resource "google_monitoring_alert_policy" "high_db_memory" {
       threshold_value = 0.85
 
       aggregations {
-        alignment_period  = "60s"
+        alignment_period   = "60s"
         per_series_aligner = "ALIGN_MEAN"
       }
     }
   }
 
   notification_channels = local.notification_channel_ids
-,
-    try([google_monitoring_notification_channel.slack[0].id], [])
-  )
 }
 
 # Alerta: Disco lleno en database
 resource "google_monitoring_alert_policy" "high_db_disk" {
-  count           = var.enable_alerts && var.dashboard_type == "database" ? 1 : 0
-  display_name    = "High Database Disk Usage"
-  combiner        = "OR"
-  enabled         = true
+  count        = var.enable_alerts && var.dashboard_type == "database" ? 1 : 0
+  display_name = "High Database Disk Usage"
+  combiner     = "OR"
+  enabled      = true
 
   conditions {
     display_name = "Disk > 90%"
@@ -734,14 +728,11 @@ resource "google_monitoring_alert_policy" "high_db_disk" {
       threshold_value = 0.9
 
       aggregations {
-        alignment_period  = "60s"
+        alignment_period   = "60s"
         per_series_aligner = "ALIGN_MEAN"
       }
     }
   }
 
   notification_channels = local.notification_channel_ids
-,
-    try([google_monitoring_notification_channel.slack[0].id], [])
-  )
 }

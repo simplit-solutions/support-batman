@@ -79,7 +79,7 @@ variable "slack_webhook_url" {
   default     = null
 }
 
-variable "slack_channel_name" { {
+variable "slack_channel_name" {
   type        = string
   description = "Nombre del canal Slack para notificaciones"
   default     = "#alerts"
