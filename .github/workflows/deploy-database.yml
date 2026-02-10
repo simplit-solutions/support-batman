@@ -78,6 +78,30 @@ jobs:
           echo "💬 Auth Method: ${{ github.event.inputs.auth_method }}"
           echo "================================================"
 
+      - name: Validate Auth Inputs
+        shell: bash
+        env:
+          AUTH_METHOD: ${{ github.event.inputs.auth_method }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+        run: |
+          if [ "$AUTH_METHOD" = "service_account" ]; then
+            if [ -z "$GCP_SA_KEY" ]; then
+              echo "ERROR: auth_method=service_account but secret GCP_SA_KEY is not set or not available in this run."
+              echo "If this run originates from a fork (or Dependabot), secrets are not passed. Run from the base repository or set the secret in the repository settings."
+              exit 1
+            fi
+          elif [ "$AUTH_METHOD" = "workload_identity" ]; then
+            if [ -z "$WORKLOAD_IDENTITY_PROVIDER" ] || [ -z "$GCP_SERVICE_ACCOUNT" ]; then
+              echo "ERROR: auth_method=workload_identity but WORKLOAD_IDENTITY_PROVIDER or GCP_SERVICE_ACCOUNT secrets are missing."
+              exit 1
+            fi
+          else
+            echo "ERROR: unknown auth_method: $AUTH_METHOD"
+            exit 1
+          fi
+
       - name: Authenticate with Service Account
         if: github.event.inputs.auth_method == 'service_account'
         uses: google-github-actions/auth@v2
