@@ -52,7 +52,7 @@ jobs:
       TF_VAR_cluster_name: ${{ github.event.inputs.cluster_name }}
       TF_VAR_notification_emails: ${{ github.event.inputs.notification_emails_json }}
       TF_VAR_slack_channel_name: ${{ github.event.inputs.slack_channel_name }}
-      TF_VAR_slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+      # Optional Slack token will be exported to TF_VAR in a following step if present
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -96,6 +96,15 @@ jobs:
             exit 1
           fi
 
+      - name: Export optional Slack secret
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.SLACK_AUTH_TOKEN }}" ]; then
+            echo "TF_VAR_slack_auth_token=${{ secrets.SLACK_AUTH_TOKEN }}" >> $GITHUB_ENV
+          elif [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            echo "TF_VAR_slack_webhook_url=${{ secrets.SLACK_WEBHOOK_URL }}" >> $GITHUB_ENV
+          fi
+
       - name: Authenticate with Service Account
         if: github.event.inputs.auth_method == 'service_account'
         uses: google-github-actions/auth@v2
@@ -129,6 +138,10 @@ jobs:
       - name: Terraform Init
         working-directory: terraform/dashboard
         run: terraform init
+
+      - name: Terraform Validate
+        working-directory: terraform/dashboard
+        run: terraform validate
 
       - name: Terraform Plan
         working-directory: terraform/dashboard

@@ -103,7 +103,8 @@ GCP_SA_KEY                    # JSON de Service Account
 # O para Workload Identity:
 WORKLOAD_IDENTITY_PROVIDER    # Tu Workload Identity Provider
 GCP_SERVICE_ACCOUNT           # Tu Service Account
-SLACK_AUTH_TOKEN             # (Opcional) Webhook de Slack
+SLACK_AUTH_TOKEN             # (Opcional) Bot User OAuth token preferido para Slack (recomendado)
+SLACK_WEBHOOK_URL            # (Opcional, legacy) Incoming Webhook URL (compatible pero no recomendado)
 ```
 
 ### Permisos Necesarios
@@ -158,6 +159,8 @@ Cloud Monitoring (API/Terraform) usa un **auth_token** (Bot User OAuth token) + 
 2. Obtén el **Bot User OAuth token**.
 3. Agrégalo como secret `SLACK_AUTH_TOKEN` en GitHub.
 4. Define el canal con `slack_channel_name` (por ejemplo `#alerts-k8s`).
+
+Nota: Las notificaciones por Slack son opcionales. Si no se proporciona `SLACK_AUTH_TOKEN` ni `SLACK_WEBHOOK_URL`, Terraform no creará un Notification Channel de Slack y solo se usarán los canales de email configurados.
 
 ## 📈 Acceder al Dashboard
 

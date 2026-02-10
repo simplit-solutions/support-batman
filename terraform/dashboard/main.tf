@@ -20,7 +20,7 @@ locals {
   }
 
   # Slack token: prefer OAuth token, fallback to legacy field if needed
-  slack_token = coalesce(var.slack_auth_token, var.slack_webhook_url)
+  slack_token = length(trim(coalesce(var.slack_auth_token, var.slack_webhook_url, ""))) > 0 ? trim(coalesce(var.slack_auth_token, var.slack_webhook_url, "")) : null
 
   # Notification channel IDs for alert policies
   notification_channel_ids = concat(
@@ -50,9 +50,7 @@ resource "google_monitoring_notification_channel" "slack" {
   type          = "slack"
   labels = {
     channel_name = var.slack_channel_name
-  }
-  sensitive_labels {
-    auth_token = local.slack_token
+    auth_token   = local.slack_token
   }
 }
 
@@ -375,7 +373,7 @@ resource "google_monitoring_alert_policy" "pod_restarts" {
     display_name = "Restarts > 5 in 10m"
     condition_threshold {
       filter          = "resource.type=\"k8s_pod\" resource.label.project_id=\"${var.target_project_id}\" metric.type=\"kubernetes.io/pod/container/restart_count\""
-      duration        = "60s"
+      duration        = "600s"
       comparison      = "COMPARISON_GT"
       threshold_value = 5
 

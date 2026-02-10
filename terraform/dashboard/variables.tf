@@ -90,6 +90,10 @@ variable "namespace_filter" {
   type        = string
   description = "Modo de filtro por namespace: 'none' (omitir), 'exact' (usar lista namespace_list)"
   default     = "none"
+  validation {
+    condition     = contains(["none", "exact"], var.namespace_filter)
+    error_message = "namespace_filter debe ser 'none' o 'exact'."
+  }
 }
 
 variable "namespace_list" {
