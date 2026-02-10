@@ -3,29 +3,38 @@ output "monitoring_project_id" {
   description = "Proyecto GCP de monitoreo central"
 }
 
-output "target_project_id" {
-  value       = var.target_project_id
-  description = "Proyecto GCP del clúster monitoreado"
+output "dashboard_type" {
+  value       = var.dashboard_type
+  description = "Tipo de dashboard desplegado (kubernetes o database)"
 }
 
-output "dashboard_id" {
-  value       = google_monitoring_dashboard.gke_cluster.id
-  description = "ID del dashboard de GKE"
+output "kubernetes_dashboard_id" {
+  value       = try(google_monitoring_dashboard.gke_cluster[0].id, null)
+  description = "ID del dashboard de Kubernetes (si fue desplegado)"
 }
 
-output "dashboard_name" {
-  value       = google_monitoring_dashboard.gke_cluster.dashboard_json
-  description = "Nombre del dashboard"
+output "database_dashboard_id" {
+  value       = try(google_monitoring_dashboard.cloud_sql[0].id, null)
+  description = "ID del dashboard de Cloud SQL (si fue desplegado)"
 }
 
-output "alert_policies" {
+output "alert_policies_kubernetes" {
   value = {
     high_node_cpu    = try(google_monitoring_alert_policy.high_node_cpu[0].id, null)
     high_node_memory = try(google_monitoring_alert_policy.high_node_memory[0].id, null)
     pod_restarts     = try(google_monitoring_alert_policy.pod_restarts[0].id, null)
     pod_failures     = try(google_monitoring_alert_policy.pod_failures[0].id, null)
   }
-  description = "IDs de las políticas de alerta"
+  description = "IDs de alertas de Kubernetes"
+}
+
+output "alert_policies_database" {
+  value = {
+    high_db_cpu    = try(google_monitoring_alert_policy.high_db_cpu[0].id, null)
+    high_db_memory = try(google_monitoring_alert_policy.high_db_memory[0].id, null)
+    high_db_disk   = try(google_monitoring_alert_policy.high_db_disk[0].id, null)
+  }
+  description = "IDs de alertas de Database"
 }
 
 output "notification_channels" {

@@ -1,3 +1,12 @@
+variable "dashboard_type" {
+  type        = string
+  description = "Tipo de dashboard: 'kubernetes' o 'database'"
+  validation {
+    condition     = contains(["kubernetes", "database"], var.dashboard_type)
+    error_message = "dashboard_type debe ser 'kubernetes' o 'database'."
+  }
+}
+
 variable "monitoring_project_id" {
   type        = string
   description = "ID del proyecto GCP donde se crearán los dashboards y alertas (proyecto central de monitoreo)"
@@ -9,16 +18,39 @@ variable "monitoring_region" {
   default     = "us-central1"
 }
 
+# ========== Variables para Kubernetes Dashboard ==========
 variable "target_project_id" {
   type        = string
-  description = "ID del proyecto GCP que contiene el clúster GKE a monitorear"
+  description = "[K8s] ID del proyecto GCP que contiene el clúster GKE a monitorear"
+  default     = ""
 }
 
 variable "cluster_name" {
   type        = string
-  description = "Nombre del clúster GKE a monitorear"
+  description = "[K8s] Nombre del clúster GKE a monitorear"
+  default     = ""
 }
 
+# ========== Variables para Database Dashboard ==========
+variable "database_project_id" {
+  type        = string
+  description = "[DB] ID del proyecto GCP que contiene las bases de datos"
+  default     = ""
+}
+
+variable "database_instance" {
+  type        = string
+  description = "[DB] Nombre de la instancia de Cloud SQL"
+  default     = ""
+}
+
+variable "database_name" {
+  type        = string
+  description = "[DB] Nombre de la base de datos"
+  default     = ""
+}
+
+# ========== Variables de Alertas ==========
 variable "enable_alerts" {
   type        = bool
   description = "Habilitar creación de alertas"

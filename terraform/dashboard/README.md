@@ -1,6 +1,6 @@
 # GCP Cloud Monitoring Dashboard - Monitoreo Cross-Project
 
-Dashboard centralizado en GCP Cloud Monitoring para monitorear un clúster GKE de **otro proyecto GCP**.
+Dashboard centralizado en GCP Cloud Monitoring para monitorear un clúster GKE o Cloud SQL de **otro proyecto GCP**.
 
 ## 🎯 Arquitectura
 
@@ -17,58 +17,94 @@ Dashboard centralizado en GCP Cloud Monitoring para monitorear un clúster GKE d
                    │
          Lee métricas desde
                    │
-┌──────────────────▼──────────────────┐
-│   Proyecto de Producción            │
-│  (production-k8s-project)           │
-│                                     │
-│  └─ GKE Cluster                     │
-│     (con Cloud Monitoring activo)  │
-└─────────────────────────────────────┘
+        ┌──────────┴──────────┐
+        │                     │
+┌───────▼──────────┐  ┌───────▼──────────┐
+│ Proyecto K8s     │  │ Proyecto DB      │
+│ (producción)     │  │ (producción)     │
+│                  │  │                  │
+│ └─ GKE Cluster   │  │ └─ Cloud SQL     │
+└──────────────────┘  └──────────────────┘
 ```
 
-## 📊 Qué se monitorea
+## 📊 Tipos de Dashboards
 
-El dashboard muestra en **tiempo real**:
+### 🚀 **Kubernetes Dashboard** (`deploy-kubernetes.yml`)
 
-### Salud de Nodos
-- CPU usage por nodo
-- Memoria disponible y utilizada
-- Disco disponible
-- Estado de red
+Monitorea un clúster GKE con métricas de:
+- Instance group size
+- CPU/Memory utilization (QA1, QA2, QA3)
+- Container metrics y HPA
+- Alertas: CPU, Memoria, Reinicios, Pods fallidos
 
-### Pods
-- Cantidad de pods running vs failed
-- Tasa de reinicios (restarts)
-- CPU y memoria consumida
-- Tráfico de red (in/out)
-- Errores de red
+**Variables necesarias:**
+- `monitoring_project_id`
+- `monitoring_region`
+- `target_project_id`
+- `cluster_name`
 
-### Contenedores
-- CPU usage por contenedor
-- Memoria working set
-- Tasa de reinicios
-- Uptime
+### 💾 **Database Dashboard** (`deploy-database.yml`)
 
-### Alertas Automáticas
-- CPU de nodos > 80%
-- Memoria de nodos > 85%
-- Pods con reinicios frecuentes (>5 en 10min)
-- Pods en estado fallido
+Monitorea Cloud SQL con métricas de:
+- CPU utilization
+- Memory usage
+- Database calls/queries
+- Connections
+- Disk utilization
+- Instance up status
+- Alertas: CPU, Memoria, Disco
 
-## 🚀 Requisitos Previos
+**Variables necesarias:**
+- `monitoring_project_id`
+- `monitoring_region`
+- `database_project_id`
+- `database_instance`
+- `database_name`
+
+## 🚀 Uso desde GitHub Actions
+
+### Opción 1: Desplegar Kubernetes Dashboard
+
+1. Ve a **Actions** → **Deploy Kubernetes Dashboard**
+2. Click en **Run workflow**
+3. Completa solo los campos de Kubernetes:
+   - `monitoring_project_id`
+   - `monitoring_region`
+   - `target_project_id`
+   - `cluster_name`
+4. Click en **Run workflow**
+
+### Opción 2: Desplegar Database Dashboard
+
+1. Ve a **Actions** → **Deploy Database Dashboard**
+2. Click en **Run workflow**
+3. Completa solo los campos de Database:
+   - `monitoring_project_id`
+   - `monitoring_region`
+   - `database_project_id`
+   - `database_instance`
+   - `database_name`
+4. Click en **Run workflow**
+
+## 📋 Requisitos Previos
 
 ### GCP
 - ✅ Dos proyectos GCP:
   - **Proyecto A (Monitoreo)**: Donde se crearán los dashboards
-  - **Proyecto B (Producción)**: Contiene el GKE cluster
+  - **Proyecto B (K8s/DB)**: Contiene el recurso a monitorear
 
-- ✅ El cluster GKE ya tiene Google Cloud Monitoring habilitado
-  - Puedes verificar: `gcloud container clusters describe CLUSTER_NAME --project=PROJECT_B`
+- ✅ El cluster GKE o Cloud SQL ya tiene Google Cloud Monitoring habilitado
 
-### Localmente
-- `terraform` v1.0+
-- `gcloud` CLI configurada
-- Permisos suficientes en ambos proyectos
+### GitHub Secrets
+Configura estos secrets en tu repositorio (Settings > Secrets):
+
+```
+GCP_SA_KEY                    # JSON de Service Account
+# O para Workload Identity:
+WORKLOAD_IDENTITY_PROVIDER    # Tu Workload Identity Provider
+GCP_SERVICE_ACCOUNT           # Tu Service Account
+SLACK_WEBHOOK_URL             # (Opcional) Webhook de Slack
+```
 
 ### Permisos Necesarios
 
@@ -80,162 +116,133 @@ roles/monitoring.dashboardEditor
 roles/monitoring.notificationChannelEditor
 ```
 
-**En Proyecto B (Producción):**
+**En Proyecto B (K8s/DB):**
 ```
 roles/monitoring.metricReader (solo lectura de métricas)
 ```
 
-## 🔧 Instalación
+## 🔐 Autenticación
 
-### 1. Clonar y preparar variables
-
+### Service Account (Recomendado para CI/CD)
 ```bash
-cd terraform/dashboard
-cp terraform.tfvars.example terraform.tfvars
+# Crea una Service Account
+gcloud iam service-accounts create github-actions
+
+# Asigna permisos en ambos proyectos
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member=serviceAccount:github-actions@PROJECT_ID.iam.gserviceaccount.com \
+  --role=roles/monitoring.admin
+
+# Genera la clave JSON
+gcloud iam service-accounts keys create sa-key.json \
+  --iam-account=github-actions@PROJECT_ID.iam.gserviceaccount.com
+
+# Agregala como secret GCP_SA_KEY en GitHub
 ```
 
-Edita `terraform.tfvars` con tus valores:
-
-```hcl
-# Proyecto donde se crearán dashboards y alertas
-monitoring_project_id = "your-monitoring-project-id"
-monitoring_region     = "us-central1"
-
-# Proyecto que contiene el cluster GKE
-target_project_id = "your-production-project-id"
-cluster_name      = "your-gke-cluster-name"
-
-# Notificaciones
-notification_emails = ["your-email@company.com"]
-slack_webhook_url   = "https://hooks.slack.com/services/..."  # Opcional
-```
-
-### 2. Autenticar con GCP
-
-```bash
-gcloud auth application-default login
-
-# Alternativamente, con Service Account
-export GOOGLE_APPLICATION_CREDENTIALS="/path/to/sa-key.json"
-```
-
-### 3. Inicializar Terraform
-
-```bash
-terraform init
-```
-
-### 4. Revisar cambios
-
-```bash
-terraform plan
-```
-
-### 5. Aplicar
-
-```bash
-terraform apply
-```
-
-## 📈 Acceder al Dashboard
-
-Una vez aplicado, accede de dos formas:
-
-### Opción 1: URL directa
-```
-https://console.cloud.google.com/monitoring/dashboards?project=YOUR_MONITORING_PROJECT_ID
-```
-
-### Opción 2: Con Terraform
-```bash
-terraform output gcp_console_url
-```
-
-Luego busca el dashboard: **"GKE Cluster - CLUSTER_NAME"**
+### Workload Identity (Más seguro)
+Sigue la documentación oficial: https://github.com/google-github-actions/auth#workload-identity-federation
 
 ## 🔔 Configurar Notificaciones
 
 ### Email
-Solo necesitas agregar los emails en `terraform.tfvars`:
-```hcl
-notification_emails = ["ops@company.com", "devops@company.com"]
+En el workflow, proporciona los emails en formato JSON:
+```
+["ops@company.com", "devops@company.com"]
 ```
 
 ### Slack
 1. Ve a tu workspace de Slack
-2. Crea una app (o usa Incoming Webhooks)
-3. Obtén el webhook URL (empieza con `https://hooks.slack.com/...`)
-4. Agrega a `terraform.tfvars`:
-```hcl
-slack_webhook_url = "https://hooks.slack.com/services/xxx/yyy/zzz"
-slack_channel_name = "#alerts-k8s"
+2. Crea una Incoming Webhook en Slack App Directory
+3. Obtén la URL (empieza con `https://hooks.slack.com/...`)
+4. Agregala como secret `SLACK_WEBHOOK_URL` en GitHub
+5. En el workflow, selecciona el canal: `#alerts-k8s`
+
+## 📈 Acceder al Dashboard
+
+Una vez desplegado:
+
+```
+https://console.cloud.google.com/monitoring/dashboards?project=YOUR_MONITORING_PROJECT_ID
 ```
 
-## 📊 Variables Configurables
+O desde el output del workflow.
 
-| Variable | Tipo | Requerido | Descripción |
-|----------|------|-----------|-------------|
-| `monitoring_project_id` | string | ✅ | Proyecto central de monitoreo |
-| `target_project_id` | string | ✅ | Proyecto con el cluster GKE |
-| `cluster_name` | string | ✅ | Nombre del cluster a monitorear |
-| `enable_alerts` | bool | ❌ | Activar alertas (default: true) |
-| `notification_emails` | list(string) | ❌ | Emails para notificaciones |
-| `slack_webhook_url` | string | ❌ | Webhook de Slack |
-| `slack_channel_name` | string | ❌ | Canal Slack (default: #alerts) |
+## 🔄 Actualizar un Dashboard
 
-## 📤 Outputs
+Para actualizar valores o agregar nuevos widgets:
 
-```bash
-terraform output
-
-# Resultados:
-# - monitoring_project_id: Tu proyecto de monitoreo
-# - target_project_id: Tu proyecto de producción
-# - dashboard_id: ID del dashboard creado
-# - alert_policies: IDs de las políticas de alerta
-# - notification_channels: IDs de canales de notificación
-# - gcp_console_url: URL directa al dashboard
-```
+1. Edita los archivos en `terraform/dashboard/`
+2. Commit y push
+3. Ejecuta el workflow correspondiente nuevamente
 
 ## 🧹 Eliminar Recursos
 
 ```bash
+cd terraform/dashboard
 terraform destroy
 ```
 
-Confirma cuando se solicite.
+## 📚 Variables Configurables
 
-## 🔐 Consideraciones de Seguridad
+### Kubernetes Dashboard
 
-- Las credenciales de Slack se guardan como `sensitive` en state
-- Usa `terraform.tfvars` local (agrégalo a `.gitignore`)
-- Considera usar un `terraform.tfvars.enc` con Terraform Cloud
-- Revisa permisos IAM en ambos proyectos regularmente
+| Variable | Ejemplo | Descripción |
+|----------|---------|-------------|
+| `monitoring_project_id` | `monitoring-prod` | Proyecto central |
+| `monitoring_region` | `us-central1` | Región de monitoreo |
+| `target_project_id` | `prod-k8s` | Proyecto del K8s |
+| `cluster_name` | `gke-prod` | Nombre del clúster |
+| `enable_alerts` | `true` | Activar alertas |
 
-## 🐛 Troubleshooting
+### Database Dashboard
 
-### Error: "Permission denied" en proyecto de producción
-- Verifica que tu usuario tenga `roles/monitoring.metricReader` en el proyecto B
+| Variable | Ejemplo | Descripción |
+|----------|---------|-------------|
+| `monitoring_project_id` | `monitoring-prod` | Proyecto central |
+| `monitoring_region` | `us-central1` | Región de monitoreo |
+| `database_project_id` | `prod-db` | Proyecto del Cloud SQL |
+| `database_instance` | `prod-mysql-01` | Nombre de instancia |
+| `database_name` | `myapp_db` | Nombre de DB |
+| `enable_alerts` | `true` | Activar alertas |
+
+## 🔍 Troubleshooting
+
+### "Permission denied"
+- Verifica que el Service Account tiene permisos en ambos proyectos
+- Confirma que `GCP_SA_KEY` es válido
 
 ### Dashboard no muestra datos
 - Espera 2-3 minutos (Cloud Monitoring tarda en actualizar)
-- Verifica que el cluster tiene `monitoring_config.enable_components = ["SYSTEM_COMPONENTS"]`
+- Verifica que el recurso existe en el proyecto
 
 ### Alertas no se envían
 - Confirma que aceptaste la invitación de email
-- Para Slack, verifica el webhook URL en la app de Slack
+- Para Slack, verifica que la URL del webhook es válida
 
-## 📚 Recursos Útiles
+## 📝 Estructura del Proyecto
 
+```
+support-batman/
+├── .github/
+│   └── workflows/
+│       ├── deploy-kubernetes.yml    # Workflow para K8s
+│       ├── deploy-database.yml      # Workflow para DB
+│       └── restore-download.yml     # Otro workflow
+├── terraform/
+│   └── dashboard/
+│       ├── main.tf                  # Dashboards y alertas
+│       ├── variables.tf             # Variables
+│       ├── outputs.tf               # Outputs
+│       ├── versions.tf              # Versiones de providers
+│       ├── terraform.tfvars.example # Ejemplo de variables
+│       └── README.md                # Esta documentación
+└── ...
+```
+
+## 🆘 Soporte
+
+Para más información:
 - [Cloud Monitoring API](https://cloud.google.com/monitoring/api)
-- [GKE Monitoring Best Practices](https://cloud.google.com/kubernetes-engine/docs/how-to/monitoring)
-- [Alert Policies Guide](https://cloud.google.com/monitoring/alerts/how-tos)
-
-## 📝 Ejemplo Completo
-
-Ver archivos en este directorio:
-- `main.tf`: Definición de dashboard y alertas
-- `variables.tf`: Variables del módulo
-- `outputs.tf`: Salidas
-- `versions.tf`: Versiones de providers
-- `terraform.tfvars.example`: Ejemplo de configuración
+- [GKE Monitoring](https://cloud.google.com/kubernetes-engine/docs/how-to/monitoring)
+- [Cloud SQL Monitoring](https://cloud.google.com/sql/docs/mysql/monitoring)
