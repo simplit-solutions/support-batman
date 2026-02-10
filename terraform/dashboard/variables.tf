@@ -88,3 +88,10 @@ variable "namespace_list" {
   description = "Lista de namespaces exactos a filtrar cuando namespace_filter == 'exact'"
   default     = []
 }
+
+# Optional: grouped namespace filters for dashboard tiles (keys like "qa1", "qa2", ...)
+variable "namespace_groups" {
+  type        = map(list(string))
+  description = "Mapa de grupos de namespaces para usar en tiles, e.g. { qa1 = [\"qa1\"] }"
+  default     = {}
+}

@@ -194,6 +194,8 @@ terraform destroy
 | `target_project_id` | `prod-k8s` | Proyecto del K8s |
 | `cluster_name` | `gke-prod` | Nombre del clúster |
 | `enable_alerts` | `true` | Activar alertas |
+| `namespace_filter` | `none` | Modo de filtrado de namespaces: `none` (omitir) o `exact` |
+| `namespace_list` | `[]` | Lista de namespaces exactos (usar cuando `namespace_filter` = `exact`) |
 
 ### Database Dashboard
 
