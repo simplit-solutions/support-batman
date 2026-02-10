@@ -1,0 +1,66 @@
+name: Deploy GKE Dashboard with Terraform
+
+on:
+  workflow_dispatch:
+    inputs:
+      monitoring_project_id:
+        description: "Proyecto central de monitoreo"
+        required: true
+      monitoring_region:
+        description: "Región del proyecto de monitoreo"
+        required: true
+        default: "us-central1"
+      target_project_id:
+        description: "Proyecto con el clúster GKE"
+        required: true
+      cluster_name:
+        description: "Nombre del clúster GKE"
+        required: true
+      enable_alerts:
+        description: "Habilitar alertas (true/false)"
+        required: true
+        default: "true"
+      notification_emails_json:
+        description: "Lista de emails en JSON, por ejemplo: [\"a@b.com\", \"c@d.com\"]"
+        required: true
+        default: "[]"
+      slack_channel_name:
+        description: "Canal de Slack (opcional)"
+        required: false
+        default: "#alerts"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      TF_VAR_monitoring_project_id: ${{ github.event.inputs.monitoring_project_id }}
+      TF_VAR_monitoring_region: ${{ github.event.inputs.monitoring_region }}
+      TF_VAR_target_project_id: ${{ github.event.inputs.target_project_id }}
+      TF_VAR_cluster_name: ${{ github.event.inputs.cluster_name }}
+      TF_VAR_enable_alerts: ${{ github.event.inputs.enable_alerts }}
+      TF_VAR_notification_emails: ${{ github.event.inputs.notification_emails_json }}
+      TF_VAR_slack_channel_name: ${{ github.event.inputs.slack_channel_name }}
+      TF_VAR_slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: terraform/dashboard
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: terraform/dashboard
+        run: terraform apply -auto-approve
