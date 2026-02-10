@@ -1,0 +1,32 @@
+# ========================================
+# PROYECTO DE MONITOREO CENTRAL
+# ========================================
+# Este es el proyecto donde se crearán los dashboards y alertas
+monitoring_project_id = "monitoring-central-project"
+monitoring_region     = "us-central1"
+
+# ========================================
+# PROYECTO CON EL CLUSTER K8s
+# ========================================
+# Este es el proyecto que contiene el cluster a monitorear
+target_project_id = "production-k8s-project"
+cluster_name      = "my-production-cluster"
+
+# ========================================
+# ALERTAS
+# ========================================
+enable_alerts = true
+
+# Notificaciones por Email
+notification_emails = [
+  "ops-team@company.com",
+  "devops-lead@company.com"
+]
+
+# Notificaciones por Slack (opcional)
+# Para obtener el webhook:
+# 1. Ve a tu workspace de Slack
+# 2. Crea una app o usa Incoming Webhooks
+# 3. Obtén la URL (empieza con https://hooks.slack.com/...)
+slack_webhook_url  = null # Reemplazar con tu webhook de Slack
+slack_channel_name = "#alerts-k8s"

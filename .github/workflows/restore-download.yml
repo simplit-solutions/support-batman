@@ -16,16 +16,39 @@ on:
         description: 'Cloud SQL Instance Connection Name'
         required: true
 
+env:
+  # GCP
+  GCP_PROJECT: ${{ github.event.inputs.project }}
+  GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+  GCP_INSTANCE_CONNECTION: ${{ github.event.inputs.instance_connection_name }}
+  
+  # Database
+  DB_HOST: 127.0.0.1
+  DB_PORT: 5432
+  DB_NAME: ${{ secrets.DB_NAME }}
+  DB_USER: ${{ secrets.DB_USER }}
+  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+  DB_SSLMODE: disable
+  
+  # AWS
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_BUCKET: ${{ secrets.BUCKET_NAME }}
+
 jobs:
   restore:
+    name: Restore Database from S3 Glacier
     runs-on: simpli-2
     container:
       image: google/cloud-sdk:359.0.0
+    
     steps:
+      # ========== Preparación ==========
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           apt update
           apt install -y postgresql-client unzip curl
@@ -33,16 +56,8 @@ jobs:
           unzip awscliv2.zip
           ./aws/install --update
 
-      - name: Mostrar variables esperadas
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+      # ========== Validación ==========
+      - name: Validate required environment variables
         run: |
           chmod +x ./restore_s3/print_env_vars.sh
           ./restore_s3/print_env_vars.sh \
@@ -51,35 +66,25 @@ jobs:
             ${{ github.event.inputs.project }} \
             ${{ github.event.inputs.instance_connection_name }}
 
-      - name: Autenticación con cuenta de servicio de GCP
+      # ========== Autenticación ==========
+      - name: Authenticate with GCP service account
         shell: bash
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
         run: |
           echo "$GOOGLE_APPLICATION_CREDENTIALS" > /tmp/gcp_sa_key.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp_sa_key.json
           gcloud auth activate-service-account --key-file=/tmp/gcp_sa_key.json
-          gcloud config set project "${{ github.event.inputs.project }}"
+          gcloud config set project "$GCP_PROJECT"
 
-      - name: Iniciar Cloud SQL Proxy
+      # ========== Conexión a Base de Datos ==========
+      - name: Start Cloud SQL Proxy
         run: |
           curl -o cloud_sql_proxy https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64
           chmod +x cloud_sql_proxy
-          ./cloud_sql_proxy -instances=${{ github.event.inputs.instance_connection_name }}=tcp:5432 &
+          ./cloud_sql_proxy -instances=$GCP_INSTANCE_CONNECTION=tcp:5432 &
           sleep 5
 
-      - name: Ejecutar script de restauración
-        env:
-          DB_HOST: 127.0.0.1
-          DB_PORT: 5432
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_SSLMODE: disable
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+      # ========== Restauración ==========
+      - name: Execute database restoration script
         run: |
           chmod +x ./restore_s3/script.sh
           ./restore_s3/script.sh ${{ github.event.inputs.account_id }} ${{ github.event.inputs.visit_id }}
