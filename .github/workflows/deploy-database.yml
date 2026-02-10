@@ -115,6 +115,15 @@ jobs:
           workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
+      - name: Normalize boolean inputs
+        shell: bash
+        run: |
+          if [ "${{ github.event.inputs.enable_alerts }}" = "true" ]; then
+            echo "TF_VAR_enable_alerts=true" >> $GITHUB_ENV
+          else
+            echo "TF_VAR_enable_alerts=false" >> $GITHUB_ENV
+          fi
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
