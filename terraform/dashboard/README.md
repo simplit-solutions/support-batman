@@ -103,7 +103,7 @@ GCP_SA_KEY                    # JSON de Service Account
 # O para Workload Identity:
 WORKLOAD_IDENTITY_PROVIDER    # Tu Workload Identity Provider
 GCP_SERVICE_ACCOUNT           # Tu Service Account
-SLACK_WEBHOOK_URL             # (Opcional) Webhook de Slack
+SLACK_AUTH_TOKEN             # (Opcional) Webhook de Slack
 ```
 
 ### Permisos Necesarios
@@ -152,11 +152,12 @@ En el workflow, proporciona los emails en formato JSON:
 ```
 
 ### Slack
-1. Ve a tu workspace de Slack
-2. Crea una Incoming Webhook en Slack App Directory
-3. Obtén la URL (empieza con `https://hooks.slack.com/...`)
-4. Agregala como secret `SLACK_WEBHOOK_URL` en GitHub
-5. En el workflow, selecciona el canal: `#alerts-k8s`
+Cloud Monitoring (API/Terraform) usa un **auth_token** (Bot User OAuth token) + `channel_name`.
+
+1. Autoriza Slack como Notification Channel en **Cloud Monitoring → Alerting → Notification channels** (Console), o crea una Slack App.
+2. Obtén el **Bot User OAuth token**.
+3. Agrégalo como secret `SLACK_AUTH_TOKEN` en GitHub.
+4. Define el canal con `slack_channel_name` (por ejemplo `#alerts-k8s`).
 
 ## 📈 Acceder al Dashboard
 
@@ -220,7 +221,7 @@ terraform destroy
 
 ### Alertas no se envían
 - Confirma que aceptaste la invitación de email
-- Para Slack, verifica que la URL del webhook es válida
+- Para Slack, verifica que el auth_token y el canal sean correctos
 
 ## 📝 Estructura del Proyecto
 

@@ -23,7 +23,7 @@ output "alert_policies_kubernetes" {
     high_node_cpu    = try(google_monitoring_alert_policy.high_node_cpu[0].id, null)
     high_node_memory = try(google_monitoring_alert_policy.high_node_memory[0].id, null)
     pod_restarts     = try(google_monitoring_alert_policy.pod_restarts[0].id, null)
-    pod_failures     = try(google_monitoring_alert_policy.pod_failures[0].id, null)
+    node_not_ready   = try(google_monitoring_alert_policy.node_not_ready[0].id, null)
   }
   description = "IDs de alertas de Kubernetes"
 }
@@ -39,7 +39,7 @@ output "alert_policies_database" {
 
 output "notification_channels" {
   value = {
-    email = try(google_monitoring_notification_channel.email[0].id, null)
+    email = [for _, c in google_monitoring_notification_channel.email : c.id]
     slack = try(google_monitoring_notification_channel.slack[0].id, null)
   }
   description = "Canales de notificación creados"

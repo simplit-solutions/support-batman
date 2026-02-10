@@ -38,9 +38,8 @@ notification_emails = [
 ]
 
 # Notificaciones por Slack (opcional)
-# Para obtener el webhook:
-# 1. Ve a tu workspace de Slack
-# 2. Crea una app o usa Incoming Webhooks
-# 3. Obtén la URL (empieza con https://hooks.slack.com/...)
-slack_webhook_url  = null # Reemplazar con tu webhook de Slack
+# Para obtener el auth_token:
+# 1. Autoriza Slack como Notification Channel en Cloud Monitoring (Console), o
+# 2. Crea una Slack App y usa el Bot User OAuth token.
+slack_auth_token  = null # Reemplazar con tu auth_token de Slack
 slack_channel_name = "#alerts"

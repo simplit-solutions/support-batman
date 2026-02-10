@@ -60,17 +60,26 @@ variable "enable_alerts" {
 variable "notification_emails" {
   type        = list(string)
   description = "Lista de emails para recibir notificaciones de alertas"
+  default     = []
+}
+
+
+variable "slack_auth_token" {
+  type        = string
+  sensitive   = true
+  description = "Auth token de Slack (Bot User OAuth token) para Notification Channel tipo 'slack'. Recomendado."
   default     = null
 }
 
+# Legacy (NO recomendado): mantenido por compatibilidad. Si lo usas, se interpretará como auth_token.
 variable "slack_webhook_url" {
   type        = string
   sensitive   = true
-  description = "URL del webhook de Slack para notificaciones (obtener de Slack app)"
+  description = "LEGACY: mantenido por compatibilidad. Cloud Monitoring espera un auth_token, no un Incoming Webhook URL."
   default     = null
 }
 
-variable "slack_channel_name" {
+variable "slack_channel_name" { {
   type        = string
   description = "Nombre del canal Slack para notificaciones"
   default     = "#alerts"
