@@ -13,7 +13,7 @@ on:
       
       # Variables comunes
       monitoring_project_id:
-        description: "Proyecto central de monitoreo"
+        description: "Proyecto central de monitoreo (REQUERIDO PARA AMBOS)"
         required: true
       monitoring_region:
         description: "Región del proyecto de monitoreo"
@@ -22,21 +22,21 @@ on:
       
       # Variables para Kubernetes Dashboard
       target_project_id:
-        description: "[K8s] Proyecto con el clúster GKE"
+        description: "[K8s ONLY] Proyecto con el clúster GKE - DEJAR VACÍO si seleccionaste 'database'"
         required: false
       cluster_name:
-        description: "[K8s] Nombre del clúster GKE"
+        description: "[K8s ONLY] Nombre del clúster GKE - DEJAR VACÍO si seleccionaste 'database'"
         required: false
       
       # Variables para Database Dashboard
       database_project_id:
-        description: "[DB] Proyecto con las bases de datos"
+        description: "[DB ONLY] Proyecto con las bases de datos - DEJAR VACÍO si seleccionaste 'kubernetes'"
         required: false
       database_instance:
-        description: "[DB] Nombre de la instancia de Cloud SQL"
+        description: "[DB ONLY] Nombre de la instancia de Cloud SQL - DEJAR VACÍO si seleccionaste 'kubernetes'"
         required: false
       database_name:
-        description: "[DB] Nombre de la base de datos"
+        description: "[DB ONLY] Nombre de la base de datos - DEJAR VACÍO si seleccionaste 'kubernetes'"
         required: false
       
       # Alertas comunes
@@ -45,8 +45,8 @@ on:
         required: true
         default: "true"
       notification_emails_json:
-        description: "Lista de emails en JSON, por ejemplo: [\"a@b.com\", \"c@d.com\"]"
-        required: true
+        description: "Lista de emails en JSON, ejemplo: [\"a@b.com\"] - DEJAR VACÍO si no quieres alertas"
+        required: false
         default: "[]"
       slack_channel_name:
         description: "Canal de Slack (opcional)"
@@ -84,6 +84,38 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate inputs for dashboard type
+        shell: bash
+        run: |
+          DASHBOARD_TYPE="${{ github.event.inputs.dashboard_type }}"
+          
+          echo "📊 Dashboard type: $DASHBOARD_TYPE"
+          echo "================================================"
+          
+          if [ "$DASHBOARD_TYPE" = "kubernetes" ]; then
+            echo "✅ Kubernetes Dashboard Mode"
+            if [ -z "${{ github.event.inputs.target_project_id }}" ] || [ -z "${{ github.event.inputs.cluster_name }}" ]; then
+              echo "❌ ERROR: target_project_id y cluster_name son REQUERIDOS para Kubernetes"
+              exit 1
+            fi
+            echo "✅ Variables de Kubernetes validadas"
+          elif [ "$DASHBOARD_TYPE" = "database" ]; then
+            echo "✅ Database Dashboard Mode"
+            if [ -z "${{ github.event.inputs.database_project_id }}" ] || [ -z "${{ github.event.inputs.database_instance }}" ] || [ -z "${{ github.event.inputs.database_name }}" ]; then
+              echo "❌ ERROR: database_project_id, database_instance y database_name son REQUERIDOS para Database"
+              exit 1
+            fi
+            echo "✅ Variables de Database validadas"
+          else
+            echo "❌ ERROR: dashboard_type no válido"
+            exit 1
+          fi
+          
+          echo "================================================"
+          echo "Monitoring Project: ${{ github.event.inputs.monitoring_project_id }}"
+          echo "Monitoring Region: ${{ github.event.inputs.monitoring_region }}"
+          echo "Alerts Enabled: ${{ github.event.inputs.enable_alerts }}"
 
       - name: Authenticate with Service Account
         if: github.event.inputs.auth_method == 'service_account'
