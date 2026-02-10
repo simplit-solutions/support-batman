@@ -54,7 +54,6 @@ jobs:
       TF_VAR_database_project_id: ${{ github.event.inputs.database_project_id }}
       TF_VAR_database_instance: ${{ github.event.inputs.database_instance }}
       TF_VAR_database_name: ${{ github.event.inputs.database_name }}
-      TF_VAR_enable_alerts: ${{ github.event.inputs.enable_alerts }}
       TF_VAR_notification_emails: ${{ github.event.inputs.notification_emails_json }}
       TF_VAR_slack_channel_name: ${{ github.event.inputs.slack_channel_name }}
       TF_VAR_slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}

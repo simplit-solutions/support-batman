@@ -50,7 +50,6 @@ jobs:
       TF_VAR_monitoring_region: ${{ github.event.inputs.monitoring_region }}
       TF_VAR_target_project_id: ${{ github.event.inputs.target_project_id }}
       TF_VAR_cluster_name: ${{ github.event.inputs.cluster_name }}
-      TF_VAR_enable_alerts: ${{ github.event.inputs.enable_alerts }}
       TF_VAR_notification_emails: ${{ github.event.inputs.notification_emails_json }}
       TF_VAR_slack_channel_name: ${{ github.event.inputs.slack_channel_name }}
       TF_VAR_slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
