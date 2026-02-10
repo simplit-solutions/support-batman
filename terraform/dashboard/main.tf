@@ -424,7 +424,7 @@ resource "google_monitoring_dashboard" "cloud_sql" {
           width  = 6
           height = 3
           widget = {
-            title = "CPU Utilization"
+            title = "Cloud SQL Database - CPU utilization [MEAN]"
             xyChart = {
               dataSets = [{
                 timeSeriesQuery = {
@@ -445,7 +445,30 @@ resource "google_monitoring_dashboard" "cloud_sql" {
           width  = 6
           height = 3
           widget = {
-            title = "Memory Utilization"
+            title = "Uso de CPU BD escritura"
+            xyChart = {
+              dataSets = [{
+                timeSeriesQuery = {
+                  timeSeriesFilter = {
+                    filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=~\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/disk/write_ops_count\""
+                    aggregation = {
+                      alignmentPeriod    = "60s"
+                      perSeriesAligner   = "ALIGN_RATE"
+                    }
+                  }
+                }
+              }]
+            }
+          }
+        },
+
+        # ==== Row 2: Memory ====
+        {
+          yPos   = 3
+          width  = 6
+          height = 3
+          widget = {
+            title = "Uso total de memoria"
             xyChart = {
               dataSets = [{
                 timeSeriesQuery = {
@@ -458,22 +481,52 @@ resource "google_monitoring_dashboard" "cloud_sql" {
                   }
                 }
               }]
+              yAxis = {
+                label = "Memory (MB)"
+                scale = "LINEAR"
+              }
             }
           }
         },
-
-        # ==== Row 2: Network ====
         {
+          xPos   = 6
           yPos   = 3
           width  = 6
           height = 3
           widget = {
-            title = "Bytes Received"
+            title = "Uso de CPU"
             xyChart = {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
-                    filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=~\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/network/received_bytes_count\""
+                    filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=~\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/cpu/utilization\""
+                    aggregation = {
+                      alignmentPeriod    = "60s"
+                      perSeriesAligner   = "ALIGN_MEAN"
+                    }
+                  }
+                }
+              }]
+              yAxis = {
+                label = "CPU %"
+                scale = "LINEAR"
+              }
+            }
+          }
+        },
+
+        # ==== Row 3: CPU Seconds ====
+        {
+          yPos   = 6
+          width  = 6
+          height = 3
+          widget = {
+            title = "Segundos de CPU"
+            xyChart = {
+              dataSets = [{
+                timeSeriesQuery = {
+                  timeSeriesFilter = {
+                    filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=~\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/mysql/queries\""
                     aggregation = {
                       alignmentPeriod    = "60s"
                       perSeriesAligner   = "ALIGN_RATE"
@@ -486,34 +539,11 @@ resource "google_monitoring_dashboard" "cloud_sql" {
         },
         {
           xPos   = 6
-          yPos   = 3
-          width  = 6
-          height = 3
-          widget = {
-            title = "Bytes Sent"
-            xyChart = {
-              dataSets = [{
-                timeSeriesQuery = {
-                  timeSeriesFilter = {
-                    filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=~\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/network/sent_bytes_count\""
-                    aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_RATE"
-                    }
-                  }
-                }
-              }]
-            }
-          }
-        },
-
-        # ==== Row 3: Connections ====
-        {
           yPos   = 6
           width  = 6
           height = 3
           widget = {
-            title = "Active Connections"
+            title = "Connections"
             xyChart = {
               dataSets = [{
                 timeSeriesQuery = {
@@ -529,32 +559,38 @@ resource "google_monitoring_dashboard" "cloud_sql" {
             }
           }
         },
+
+        # ==== Row 4: Database Calls ====
         {
-          xPos   = 6
-          yPos   = 6
-          width  = 6
+          yPos   = 9
+          width  = 12
           height = 3
           widget = {
-            title = "Replication Lag"
+            title = "Llamadas"
             xyChart = {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
-                    filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=~\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/replication/replica_lag\""
+                    filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=~\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/mysql/queries\""
                     aggregation = {
                       alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_MAX"
+                      perSeriesAligner   = "ALIGN_RATE"
+                      crossSeriesReducer = "REDUCE_NONE"
                     }
                   }
                 }
               }]
+              yAxis = {
+                label = "Queries/sec"
+                scale = "LINEAR"
+              }
             }
           }
         },
 
-        # ==== Row 4: Disk ====
+        # ==== Row 5: Disk Utilization ====
         {
-          yPos   = 9
+          yPos   = 12
           width  = 6
           height = 3
           widget = {
@@ -576,31 +612,8 @@ resource "google_monitoring_dashboard" "cloud_sql" {
         },
         {
           xPos   = 6
-          yPos   = 9
-          width  = 6
-          height = 3
-          widget = {
-            title = "Disk Read/Write Operations"
-            xyChart = {
-              dataSets = [{
-                timeSeriesQuery = {
-                  timeSeriesFilter = {
-                    filter = "resource.type=\"cloudsql_database\" resource.label.project_id=\"${var.database_project_id}\" resource.label.database_id=~\"${var.database_project_id}:${var.database_instance}\" metric.type=\"cloudsql.googleapis.com/database/disk/read_ops_count\""
-                    aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_RATE"
-                    }
-                  }
-                }
-              }]
-            }
-          }
-        },
-
-        # ==== Row 5: Up Status ====
-        {
           yPos   = 12
-          width  = 12
+          width  = 6
           height = 3
           widget = {
             title = "Database Instance Up"
