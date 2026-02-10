@@ -75,3 +75,16 @@ variable "slack_channel_name" {
   description = "Nombre del canal Slack para notificaciones"
   default     = "#alerts"
 }
+
+# Optional namespace filter: 'none' (default) or 'exact'.
+variable "namespace_filter" {
+  type        = string
+  description = "Modo de filtro por namespace: 'none' (omitir), 'exact' (usar lista namespace_list)"
+  default     = "none"
+}
+
+variable "namespace_list" {
+  type        = list(string)
+  description = "Lista de namespaces exactos a filtrar cuando namespace_filter == 'exact'"
+  default     = []
+}

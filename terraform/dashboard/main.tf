@@ -4,6 +4,10 @@ provider "google" {
   region  = var.monitoring_region
 }
 
+locals {
+  namespace_filter_expr = var.namespace_filter == "exact" && length(var.namespace_list) > 0 ? ("(" + join(" OR ", [for ns in var.namespace_list : format("resource.label.namespace_name=\"%s\"", ns)]) + ")") : ""
+}
+
 # ============================================
 # NOTIFICATION CHANNELS (para alertas)
 # ============================================
@@ -88,7 +92,7 @@ resource "google_monitoring_dashboard" "gke_cluster" {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
-                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\" resource.label.namespace_name=~\"qa1.*\" metric.type=\"kubernetes.io/container/cpu/limit_utilization\""
+                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\" ${local.namespace_filter_expr} metric.type=\"kubernetes.io/container/cpu/limit_utilization\""
                     aggregation = {
                       alignmentPeriod    = "60s"
                       perSeriesAligner   = "ALIGN_MEAN"
@@ -110,7 +114,7 @@ resource "google_monitoring_dashboard" "gke_cluster" {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
-                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\" resource.label.namespace_name=~\"qa1.*\" metric.type=\"kubernetes.io/container/memory/limit_utilization\""
+                    filter = "resource.type=\"k8s_container\" resource.label.project_id=\"${var.target_project_id}\" ${local.namespace_filter_expr} metric.type=\"kubernetes.io/container/memory/limit_utilization\""
                     aggregation = {
                       alignmentPeriod    = "60s"
                       perSeriesAligner   = "ALIGN_MEAN"
