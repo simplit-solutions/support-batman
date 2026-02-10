@@ -1,4 +1,10 @@
 # ========================================
+# TIPO DE DASHBOARD
+# ========================================
+# Elige: "kubernetes" o "database"
+dashboard_type = "kubernetes"
+
+# ========================================
 # PROYECTO DE MONITOREO CENTRAL
 # ========================================
 # Este es el proyecto donde se crearán los dashboards y alertas
@@ -6,11 +12,19 @@ monitoring_project_id = "monitoring-central-project"
 monitoring_region     = "us-central1"
 
 # ========================================
-# PROYECTO CON EL CLUSTER K8s
+# VARIABLES PARA KUBERNETES DASHBOARD
 # ========================================
-# Este es el proyecto que contiene el cluster a monitorear
+# Solo necesarias si dashboard_type = "kubernetes"
 target_project_id = "production-k8s-project"
 cluster_name      = "my-production-cluster"
+
+# ========================================
+# VARIABLES PARA DATABASE DASHBOARD
+# ========================================
+# Solo necesarias si dashboard_type = "database"
+database_project_id = "production-db-project"
+database_instance   = "my-cloudsql-instance"
+database_name       = "my_database"
 
 # ========================================
 # ALERTAS
@@ -29,4 +43,4 @@ notification_emails = [
 # 2. Crea una app o usa Incoming Webhooks
 # 3. Obtén la URL (empieza con https://hooks.slack.com/...)
 slack_webhook_url  = null # Reemplazar con tu webhook de Slack
-slack_channel_name = "#alerts-k8s"
+slack_channel_name = "#alerts"

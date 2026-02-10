@@ -3,6 +3,15 @@ name: Deploy GKE Dashboard with Terraform
 on:
   workflow_dispatch:
     inputs:
+      dashboard_type:
+        description: "Tipo de dashboard a desplegar"
+        required: true
+        type: choice
+        options:
+          - kubernetes
+          - database
+      
+      # Variables comunes
       monitoring_project_id:
         description: "Proyecto central de monitoreo"
         required: true
@@ -10,12 +19,27 @@ on:
         description: "Región del proyecto de monitoreo"
         required: true
         default: "us-central1"
+      
+      # Variables para Kubernetes Dashboard
       target_project_id:
-        description: "Proyecto con el clúster GKE"
-        required: true
+        description: "[K8s] Proyecto con el clúster GKE"
+        required: false
       cluster_name:
-        description: "Nombre del clúster GKE"
-        required: true
+        description: "[K8s] Nombre del clúster GKE"
+        required: false
+      
+      # Variables para Database Dashboard
+      database_project_id:
+        description: "[DB] Proyecto con las bases de datos"
+        required: false
+      database_instance:
+        description: "[DB] Nombre de la instancia de Cloud SQL"
+        required: false
+      database_name:
+        description: "[DB] Nombre de la base de datos"
+        required: false
+      
+      # Alertas comunes
       enable_alerts:
         description: "Habilitar alertas (true/false)"
         required: true
@@ -28,6 +52,14 @@ on:
         description: "Canal de Slack (opcional)"
         required: false
         default: "#alerts"
+      auth_method:
+        description: "Método de autenticación: 'workload_identity' o 'service_account'"
+        required: true
+        default: "service_account"
+        type: choice
+        options:
+          - workload_identity
+          - service_account
 
 permissions:
   contents: read
@@ -37,10 +69,14 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
+      TF_VAR_dashboard_type: ${{ github.event.inputs.dashboard_type }}
       TF_VAR_monitoring_project_id: ${{ github.event.inputs.monitoring_project_id }}
       TF_VAR_monitoring_region: ${{ github.event.inputs.monitoring_region }}
       TF_VAR_target_project_id: ${{ github.event.inputs.target_project_id }}
       TF_VAR_cluster_name: ${{ github.event.inputs.cluster_name }}
+      TF_VAR_database_project_id: ${{ github.event.inputs.database_project_id }}
+      TF_VAR_database_instance: ${{ github.event.inputs.database_instance }}
+      TF_VAR_database_name: ${{ github.event.inputs.database_name }}
       TF_VAR_enable_alerts: ${{ github.event.inputs.enable_alerts }}
       TF_VAR_notification_emails: ${{ github.event.inputs.notification_emails_json }}
       TF_VAR_slack_channel_name: ${{ github.event.inputs.slack_channel_name }}
@@ -49,10 +85,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
+      - name: Authenticate with Service Account
+        if: github.event.inputs.auth_method == 'service_account'
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Authenticate with Workload Identity
+        if: github.event.inputs.auth_method == 'workload_identity'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
