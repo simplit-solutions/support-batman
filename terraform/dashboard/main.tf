@@ -31,7 +31,6 @@ resource "google_monitoring_notification_channel" "slack" {
 
   labels = {
     channel_name = var.slack_channel_name
-    auth_token   = var.slack_webhook_url
   }
 
   sensitive_labels {
